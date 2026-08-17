@@ -5,7 +5,7 @@ import io
 from app.core.config import settings
 from app.schemas.guardrails import ClaimAnalysis
 
-async def analyze_claim_evidence(description: str, image_bytes: bytes) -> ClaimAnalysis:
+async def analyze_claim_evidence(description: str, image_bytes: bytes, product_name: str, category: str) -> ClaimAnalysis:
     """
     Agente Investigador: Analiza la evidencia visual utilizando la SDK moderna google-genai
     y fuerza la respuesta estructurada mediante esquemas de Pydantic.
@@ -18,10 +18,19 @@ async def analyze_claim_evidence(description: str, image_bytes: bytes) -> ClaimA
         image = Image.open(io.BytesIO(image_bytes))
         
         prompt = f"""
-        Eres el Agente Investigador de un sistema automatizado de postventa.
+        Eres el Agente Investigador experto en control de calidad y postventa.
         Tu tarea es evaluar la imagen adjunta del producto y compararla estrictamente con el reclamo del cliente.
         
-        Reclamo del cliente: "{description}"
+        CONTEXTO DE LA COMPRA:
+        - Producto original adquirido: "{product_name}"
+        - Categoría: "{category}"
+        
+        RECLAMO DEL CLIENTE:
+        "{description}"
+        
+        Instrucciones:
+        1. Verifica si el objeto en la imagen coincide con el producto adquirido.
+        2. Analiza si presenta el daño reclamado, teniendo en cuenta las características típicas de un producto de la categoría '{category}'.
         """
         
         # 3. Invocar al modelo multimodal solicitando una salida estructurada (JSON Schema nativo)
