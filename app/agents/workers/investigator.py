@@ -1,0 +1,1 @@
+# TODO: Lógica del agente investigador
