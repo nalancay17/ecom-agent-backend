@@ -14,8 +14,10 @@ class ClaimResponse(BaseModel):
     hitl_reasons: Optional[List[str]] = None
     analysis: Optional[Dict[str, Any]] = None
     risk_evaluation: Optional[Dict[str, Any]] = None
+    policy_review: Optional[Dict[str, Any]] = None
 
-@router.post("/", response_model=ClaimResponse)
+@router.post("", response_model=ClaimResponse)
+@router.post("/", response_model=ClaimResponse, include_in_schema=False)
 async def create_claim(
     client_id: str = Form(...),
     order_id: str = Form(...),
@@ -27,7 +29,7 @@ async def create_claim(
             status_code=status.HTTP_400_BAD_REQUEST, 
             detail="Solo se permiten archivos de imagen."
         )
- 
+
     # 1. Leer imagen
     image_bytes = await image.read()
 
@@ -40,6 +42,7 @@ async def create_claim(
         "order_data": None,
         "investigation_analysis": None,
         "fraud_risk_analysis": None,
+        "policy_review": None,
         "composite_score": 0.0,
         "requires_hitl": False,
         "hitl_reasons": [],
@@ -48,7 +51,7 @@ async def create_claim(
         "final_message": ""
     }
 
-    # 3. Ejecutar el Grafo de Estados
+    # 3. Ejecución asíncrona del Grafo de Estados
     final_state = await claim_graph.ainvoke(initial_state)
 
     # 4. Manejo de errores de validación de orden/cliente
@@ -63,7 +66,7 @@ async def create_claim(
             detail=final_state["final_message"]
         )
 
-    # 6. Respuesta al cliente
+    # 5. Respuesta enriquecida para el cliente y observabilidad
     return {
         "claim_id": final_state.get("claim_id"),
         "status": final_state.get("status"),
@@ -72,5 +75,6 @@ async def create_claim(
         "requires_hitl": final_state.get("requires_hitl", False),
         "hitl_reasons": final_state.get("hitl_reasons"),
         "analysis": final_state.get("investigation_analysis"),
-        "risk_evaluation": final_state.get("fraud_risk_analysis")
+        "risk_evaluation": final_state.get("fraud_risk_analysis"),
+        "policy_review": final_state.get("policy_review")
     }

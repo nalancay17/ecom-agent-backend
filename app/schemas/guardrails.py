@@ -13,12 +13,21 @@ class ClaimAnalysis(BaseModel):
         description="Problemas detectados en la evidencia (ej: 'borrosa', 'baja_iluminacion', 'objeto_lejano', 'ninguno')."
     )
 
-# Esquema para análisis de fraude
+# Esquema para análisis de fraude (Memoria Episódica)
 class FraudRiskAnalysis(BaseModel):
     fraud_risk_score: float = Field(ge=0.0, le=1.0, description="Nivel de riesgo de fraude estimado (0.0 = seguro, 1.0 = alto riesgo).")
     risk_level: str = Field(description="Nivel categórico: 'BAJO', 'MEDIO' o 'ALTO'.")
     risk_reasons: List[str] = Field(description="Factores que justifican el nivel de riesgo asignado.")
     is_suspicious: bool = Field(description="Indica si el caso presenta anomalías que requieren intervención humana.")
+
+# Esquema para validación de políticas (Memoria Semántica vía RAG)
+class PolicyReview(BaseModel):
+    is_compliant: bool = Field(description="¿El reclamo cumple estrictamente con las políticas corporativas?")
+    applied_clause: str = Field(description="Título y número del artículo aplicado (ej: 'Artículo 3: Garantía Legal por Falla Técnica').")
+    clause_citation: str = Field(description="Fragmento textual exacto citado del manual de políticas que fundamenta la decisión.")
+    policy_reasoning: str = Field(description="Explicación detallada de por qué aplica o no la política al caso.")
+    confidence_score: float = Field(ge=0.0, le=1.0, description="Nivel de certeza en la aplicabilidad de la política (0.0 a 1.0).")
+    requires_human_escalation: bool = Field(description="Indica si la política exige derivación obligatoria a revisión humana.")
 
 # Esquema de decisión final del análisis
 class FinalDecision(BaseModel):

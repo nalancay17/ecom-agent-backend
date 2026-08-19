@@ -1,4 +1,3 @@
-# app/tools/oms.py
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -10,7 +9,7 @@ from app.core.database import AsyncSessionLocal
 from app.models.entities import Order, Claim
 
 async def get_order_details_db(order_id: str, db: Optional[AsyncSession] = None) -> dict | None:
-    """Consulta la orden en la base de datos con su producto y cliente asociados."""
+    """Consulta la orden con su producto y cliente asociados, calculando historial y días desde la entrega."""
     async def _query(session: AsyncSession):
         query = (
             select(Order)
@@ -21,6 +20,7 @@ async def get_order_details_db(order_id: str, db: Optional[AsyncSession] = None)
         order = result.scalar_one_or_none()
         if not order:
             return None
+
         # Consultar Memoria Episódica: reclamos previos del cliente
         ninety_days_ago = datetime.utcnow() - timedelta(days=90)
         
@@ -32,6 +32,12 @@ async def get_order_details_db(order_id: str, db: Optional[AsyncSession] = None)
         
         total_claims = (await session.execute(claims_total_query)).scalar() or 0
         recent_claims = (await session.execute(claims_90d_query)).scalar() or 0
+
+        # Cómputo de días desde la entrega
+        days_since_delivery = 3
+        if order.delivery_date:
+            days_since_delivery = max(1, (datetime.utcnow() - order.delivery_date).days)
+
         return {
             "order_id": order.id,
             "client_id": order.client_id,
@@ -45,8 +51,12 @@ async def get_order_details_db(order_id: str, db: Optional[AsyncSession] = None)
             "category": order.product.category,
             "price": order.product.price,
             "is_returnable": order.product.is_returnable,
+            "days_since_delivery": days_since_delivery,
+            "purchase_date": order.purchase_date.isoformat() if order.purchase_date else None,
+            "delivery_date": order.delivery_date.isoformat() if order.delivery_date else None,
             "status": order.status
         }
+
     if db:
         return await _query(db)
     else:
@@ -79,6 +89,7 @@ async def save_claim_to_db(
         session.add(new_claim)
         await session.commit()
         return claim_id
+
     if db:
         return await _save(db)
     else:
