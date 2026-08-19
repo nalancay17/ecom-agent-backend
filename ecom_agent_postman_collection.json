@@ -1,0 +1,585 @@
+{
+	"info": {
+		"_postman_id": "ecom-agent-utn-2026",
+		"name": "E-Com Agent - API Collection (Entrega Final UTN)",
+		"description": "Colección completa de pruebas para E-Com Agent: Sistema Agéntico de Gestión de Devoluciones y Reclamos con LangGraph, Memoria Persistente (4 Capas), RAG Semántico y Human-In-The-Loop (HITL).",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Creación de Reclamos (Flujo Agéntico LangGraph)",
+			"item": [
+				{
+					"name": "1.1 Caso 1 - Aprobación Automática (Camino Feliz - Auriculares $45k)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "client_id",
+									"value": "CLI-123",
+									"type": "text"
+								},
+								{
+									"key": "order_id",
+									"value": "ORD-1002",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "El auricular izquierdo no enciende ni toma carga en el estuche tras sacarlo de la caja.",
+									"type": "text"
+								},
+								{
+									"key": "image",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/claims",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"claims"
+							]
+						},
+						"description": "Prueba de aprobación 100% autónoma. Producto < $100k, cliente confiable y reclamo en plazo de garantía. Genera automáticamente la guía de logística inversa."
+					},
+					"response": []
+				},
+				{
+					"name": "1.2 Caso 2 - HITL por Monto Alto (Guardrail Presupuesto - Monitor $180k)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "client_id",
+									"value": "CLI-123",
+									"type": "text"
+								},
+								{
+									"key": "order_id",
+									"value": "ORD-1001",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "La pantalla del monitor presenta una fisura interna y líneas verticales al encenderlo.",
+									"type": "text"
+								},
+								{
+									"key": "image",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/claims",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"claims"
+							]
+						},
+						"description": "Prueba del Guardrail de Monto. Aunque la foto muestre daño real, al superar los $100.000 se deriva obligatoriamente a revisión humana (PENDING_HITL_HIGH_AMOUNT)."
+					},
+					"response": []
+				},
+				{
+					"name": "1.3 Caso 3 - Rechazo por Guardrail de Categoría (Higiene / Ropa Interior)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "client_id",
+									"value": "CLI-789",
+									"type": "text"
+								},
+								{
+									"key": "order_id",
+									"value": "ORD-1003",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "El talle del boxer de algodón me queda chico y quiero devolverlo para cambiarlo de talle.",
+									"type": "text"
+								},
+								{
+									"key": "image",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/claims",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"claims"
+							]
+						},
+						"description": "Prueba del Guardrail de Bioseguridad y Artículo 4 del manual de políticas. Rechaza el reclamo por categoría no retornable."
+					},
+					"response": []
+				},
+				{
+					"name": "1.4 Caso 4 - HITL por Riesgo de Fraude (Memoria Episódica - Cliente Riesgoso)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "client_id",
+									"value": "CLI-456",
+									"type": "text"
+								},
+								{
+									"key": "order_id",
+									"value": "ORD-1004",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "Todos los vasos llegaron rotos en pedazos dentro de la caja.",
+									"type": "text"
+								},
+								{
+									"key": "image",
+									"type": "file",
+									"src": []
+								}
+							]
+								},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/claims",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"claims"
+							]
+						},
+						"description": "Prueba del Agente de Riesgo. La cliente María Gómez (CLI-456) tiene bajo trust_score (0.40) y reclamos recurrentes, disparando PENDING_HITL_RISK_SUSPICION."
+					},
+					"response": []
+				},
+				{
+					"name": "1.5 Caso 5 - Rechazo/HITL por Garantía Vencida (RAG Semántico Art. 3)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "client_id",
+									"value": "CLI-123",
+									"type": "text"
+								},
+								{
+									"key": "order_id",
+									"value": "ORD-1005",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "El reloj dejó de responder la pantalla táctil tras varios meses de uso.",
+									"type": "text"
+								},
+								{
+									"key": "image",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/claims",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"claims"
+							]
+						},
+						"description": "Prueba de RAG Semántico con cómputo de fechas. La orden tiene 220 días de antigüedad, superando el límite legal de 180 días (Art. 3.1)."
+					},
+					"response": []
+				},
+				{
+					"name": "1.6 Caso 6 - Cliente VIP Aprobación Automática (Cafetera $85k)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "client_id",
+									"value": "CLI-789",
+									"type": "text"
+								},
+								{
+									"key": "order_id",
+									"value": "ORD-1006",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "La cafetera pierde agua por la junta inferior al encender la bomba.",
+									"type": "text"
+								},
+								{
+									"key": "image",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/claims",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"claims"
+							]
+						},
+						"description": "Prueba de cliente VIP con score 1.0 y producto en garantía dentro de los límites de autonomía. Aprobación inmediata."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "2. Panel Administrador y Human-In-The-Loop (HITL)",
+			"item": [
+				{
+					"name": "2.1 Listar Reclamos Pendientes de Auditoría Humana",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/claims/pending",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"claims",
+								"pending"
+							]
+						},
+						"description": "Recupera la cola de reclamos derivados a HITL con sus motivos de sospecha y score para el panel de supervisión."
+					},
+					"response": []
+				},
+				{
+					"name": "2.2 Supervisor: Aprobar Reclamo HITL y Generar Guía Logística",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"decision\": \"APPROVED_BY_HUMAN\",\n  \"reviewer_notes\": \"Evidencia fotográfica auditada. Falla técnica verificada en monitor. Se autoriza cambio de producto y despacho con Andreani.\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/claims/CLM-INIT-HITL-003/resolve",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"claims",
+								"CLM-INIT-HITL-003",
+								"resolve"
+							]
+						},
+						"description": "El operador humano aprueba un reclamo que había quedado frenado por el Guardrail de monto alto. Se genera automáticamente la guía logística."
+					},
+					"response": []
+				},
+				{
+					"name": "2.3 Supervisor: Rechazar Reclamo HITL con Notas de Auditoría",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"decision\": \"REJECTED_BY_HUMAN\",\n  \"reviewer_notes\": \"El daño presentado corresponde a un golpe accidental por caída, no amparado por la garantía legal según Cláusula 3.2.\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/claims/CLM-INIT-HITL-003/resolve",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"claims",
+								"CLM-INIT-HITL-003",
+								"resolve"
+							]
+						},
+						"description": "El operador humano rechaza formalmente el reclamo fundamentando con las cláusulas de exclusión."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "3. Consultas del Cliente y Dashboard de Observabilidad",
+			"item": [
+				{
+					"name": "3.1 Consultar Estado y Guía de un Reclamo por ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/claims/CLM-INIT-001",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"claims",
+								"CLM-INIT-001"
+							]
+						},
+						"description": "Consulta para el portal del cliente. Devuelve estado, tracking_number y enlace a la etiqueta de devolución."
+					},
+					"response": []
+				},
+				{
+					"name": "3.2 Obtener Métricas de Rendimiento y Automatización del Sistema",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/claims/metrics",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"claims",
+								"metrics"
+							]
+						},
+						"description": "Métricas para el Dashboard del Administrador: tasa de automatización (%), total reclamos, pendientes HITL y score promedio."
+					},
+					"response": []
+				},
+				{
+					"name": "3.3 Health Check API",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Verificación de estado de la API."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "4. Validaciones de Error y Seguridad",
+			"item": [
+				{
+					"name": "4.1 Error 404 - Orden Inexistente en OMS",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "client_id",
+									"value": "CLI-123",
+									"type": "text"
+								},
+								{
+									"key": "order_id",
+									"value": "ORD-9999",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "Mi producto no funciona",
+									"type": "text"
+								},
+								{
+									"key": "image",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/claims",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"claims"
+							]
+						},
+						"description": "Prueba de validación: la orden no existe y el sistema aborta de inmediato devolviendo HTTP 404 Not Found."
+					},
+					"response": []
+				},
+				{
+					"name": "4.2 Error 403 - Cliente no Coincide con la Orden",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "client_id",
+									"value": "CLI-456",
+									"type": "text"
+								},
+								{
+									"key": "order_id",
+									"value": "ORD-1001",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "Intento reclamar un monitor ajeno",
+									"type": "text"
+								},
+								{
+									"key": "image",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/claims",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"claims"
+							]
+						},
+						"description": "Prueba de seguridad: la orden pertenece a CLI-123 y se envía con CLI-456, abortando con HTTP 403 Forbidden."
+					},
+					"response": []
+				},
+				{
+					"name": "4.3 Error 400 - Archivo Inválido (No es imagen)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "client_id",
+									"value": "CLI-123",
+									"type": "text"
+								},
+								{
+									"key": "order_id",
+									"value": "ORD-1002",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "Adjunto documento en lugar de foto",
+									"type": "text"
+								},
+								{
+									"key": "image",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/claims",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"claims"
+							]
+						},
+						"description": "Prueba de validación de formato: si no es tipo image/* devuelve HTTP 400 Bad Request."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://127.0.0.1:8000",
+			"type": "string"
+		}
+	]
+}

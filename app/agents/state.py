@@ -15,6 +15,7 @@ class ClaimState(TypedDict):
     investigation_analysis: Optional[Dict[str, Any]]  # Agente Investigador (Visión)
     fraud_risk_analysis: Optional[Dict[str, Any]]     # Agente Evaluador de Fraude (Memoria Episódica)
     policy_review: Optional[Dict[str, Any]]           # Agente Validador de Políticas (Memoria Semántica RAG)
+    action_details: Optional[Dict[str, Any]]          # Agente Ejecutor de Acciones (Logística)
     
     # 4. Métricas de decisión y Guardrails
     composite_score: float

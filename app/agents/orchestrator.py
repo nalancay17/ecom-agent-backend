@@ -5,11 +5,12 @@ from app.tools.oms import get_order_details_db, save_claim_to_db
 from app.agents.workers.investigator import analyze_claim_evidence
 from app.agents.workers.risk_evaluator import evaluate_fraud_risk
 from app.agents.workers.reviewer import review_claim_policies
+from app.agents.workers.action_agent import execute_claim_action
 import uuid
 
-# NODO 1: Recuperación orden en DB y validaciones 
+# --- NODO 1: Validación y recuperación en OMS ---
 async def node_fetch_order(state: ClaimState) -> Dict[str, Any]:
-    """Consulta la orden y la reputación histórica del cliente."""
+    """Consulta la orden y la reputación histórica del cliente en el OMS."""
     order_data = await get_order_details_db(state["order_id"])
     if not order_data:
         return {
@@ -28,7 +29,7 @@ async def node_fetch_order(state: ClaimState) -> Dict[str, Any]:
         "status": "order_verified"
     }
 
-# NODO 2: Agente Investigador (análisis visual de evidencia)
+# --- NODO 2: Agente Investigador (Visión Multimodal) ---
 async def node_investigate_evidence(state: ClaimState) -> Dict[str, Any]:
     """Audita la foto del producto, calidad de imagen y daño físico."""
     order = state["order_data"]
@@ -43,7 +44,7 @@ async def node_investigate_evidence(state: ClaimState) -> Dict[str, Any]:
         "status": "evidence_analyzed"
     }
 
-# NODO 3: Agente Evaluador de Riesgo y Fraude (Memoria Episódica)
+# --- NODO 3: Agente Evaluador de Riesgo y Fraude (Memoria Episódica) ---
 async def node_evaluate_fraud_risk(state: ClaimState) -> Dict[str, Any]:
     """Evalúa el historial de compras y reclamos del cliente para detectar anomalías."""
     order = state["order_data"]
@@ -61,7 +62,7 @@ async def node_evaluate_fraud_risk(state: ClaimState) -> Dict[str, Any]:
         "status": "risk_evaluated"
     }
 
-# NODO 4: Agente Validador de Políticas (Memoria Semántica RAG)
+# --- NODO 4: Agente Validador de Políticas (Memoria Semántica RAG) ---
 async def node_review_policies(state: ClaimState) -> Dict[str, Any]:
     """Contrasta el reclamo con el manual corporativo mediante Agentic RAG."""
     order = state["order_data"]
@@ -79,9 +80,9 @@ async def node_review_policies(state: ClaimState) -> Dict[str, Any]:
         "status": "policies_reviewed"
     }
 
-# NODO 5: Motor de Decisión Ponderado y Guardrails (HITL)
+# --- NODO 5: Motor de Decisión Ponderado y Guardrails (HITL) ---
 async def node_apply_guardrails_and_decision(state: ClaimState) -> Dict[str, Any]:
-    """Calcula el Score Compuesto y evalúa Guardrails inmutables."""
+    """Calcula el Score Compuesto multi-señal y evalúa los Guardrails inmutables."""
     order = state["order_data"]
     visual = state["investigation_analysis"]
     risk = state["fraud_risk_analysis"]
@@ -155,10 +156,29 @@ async def node_apply_guardrails_and_decision(state: ClaimState) -> Dict[str, Any
         "final_message": message
     }
 
-# NODO 6: Persistencia en Memoria Episódica
+# --- NODO 6: Agente Ejecutor de Acciones (Logística Inversa) ---
+async def node_execute_action(state: ClaimState) -> Dict[str, Any]:
+    """Dispara la acción operativa correspondiente (ej. generar guía de despacho si está aprobado)."""
+    order = state["order_data"]
+    action_result = await execute_claim_action(
+        claim_id=state["claim_id"],
+        order_id=state["order_id"],
+        status=state["status"],
+        client_name=order.get("client_name", "Cliente"),
+        product_name=order.get("product_name", "Producto"),
+        requires_hitl=state["requires_hitl"]
+    )
+    return {
+        "action_details": action_result
+    }
+
+# --- NODO 7: Persistencia en Memoria Episódica ---
 async def node_persist_episodic_memory(state: ClaimState) -> Dict[str, Any]:
-    """Guarda la resolución del reclamo con trazabilidad completa en la base de datos."""
+    """Guarda la resolución del reclamo con trazabilidad y logística en la base de datos."""
     visual = state["investigation_analysis"]
+    action = state.get("action_details") or {}
+    logistics = action.get("logistics") or {}
+    
     await save_claim_to_db(
         claim_id=state["claim_id"],
         order_id=state["order_id"],
@@ -167,17 +187,20 @@ async def node_persist_episodic_memory(state: ClaimState) -> Dict[str, Any]:
         is_damaged=visual.get("is_product_damaged", False),
         confidence=state["composite_score"],
         requires_hitl=state["requires_hitl"],
-        status=state["status"]
+        status=state["status"],
+        hitl_reasons=state.get("hitl_reasons"),
+        tracking_number=logistics.get("tracking_number"),
+        label_url=logistics.get("label_url")
     )
     return {"status": state["status"]}
 
-# CONDICIÓN: Validar orden en OMS
+# --- CONDICIÓN: Validar orden en OMS ---
 def condition_order_valid(state: ClaimState) -> str:
     if state.get("order_data") is None:
         return "abort"
     return "continue"
 
-# CONSTRUCCIÓN Y COMPILACIÓN DEL GRAFO DE LANGGRAPH
+# --- COMPILACIÓN DEL GRAFO LANGGRAPH ---
 def build_claim_workflow():
     workflow = StateGraph(ClaimState)
     
@@ -187,6 +210,7 @@ def build_claim_workflow():
     workflow.add_node("evaluate_fraud_risk", node_evaluate_fraud_risk)
     workflow.add_node("review_policies", node_review_policies)
     workflow.add_node("apply_guardrails", node_apply_guardrails_and_decision)
+    workflow.add_node("execute_action", node_execute_action)
     workflow.add_node("persist_memory", node_persist_episodic_memory)
     
     # 2. Punto de Entrada
@@ -206,7 +230,8 @@ def build_claim_workflow():
     workflow.add_edge("investigate_evidence", "evaluate_fraud_risk")
     workflow.add_edge("evaluate_fraud_risk", "review_policies")
     workflow.add_edge("review_policies", "apply_guardrails")
-    workflow.add_edge("apply_guardrails", "persist_memory")
+    workflow.add_edge("apply_guardrails", "execute_action")
+    workflow.add_edge("execute_action", "persist_memory")
     workflow.add_edge("persist_memory", END)
     
     return workflow.compile()
