@@ -2,7 +2,14 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy.orm import declarative_base
 import os
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./ecom_agent.db")
+# Configuración de Base de Datos compatible con Local, Docker y Serverless Vercel (/tmp)
+if "DATABASE_URL" in os.environ and os.environ["DATABASE_URL"]:
+    DATABASE_URL = os.environ["DATABASE_URL"]
+elif os.getenv("VERCEL"):
+    # En Vercel Serverless solo /tmp tiene permisos de escritura para SQLite
+    DATABASE_URL = "sqlite+aiosqlite:////tmp/ecom_agent.db"
+else:
+    DATABASE_URL = "sqlite+aiosqlite:///./ecom_agent.db"
 
 engine = create_async_engine(
     DATABASE_URL,
