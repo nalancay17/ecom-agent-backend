@@ -241,6 +241,29 @@ async def get_claims_metrics_db(db: Optional[AsyncSession] = None) -> Dict[str, 
 
         automation_rate = round((auto_approved / total_claims * 100), 1) if total_claims > 0 else 0.0
 
+        # Recuperar los últimos 6 reclamos para la tabla de Orquestación en Vivo
+        recent_query = (
+            select(Claim)
+            .options(
+                selectinload(Claim.order).selectinload(Order.product),
+                selectinload(Claim.client)
+            )
+            .order_by(desc(Claim.created_at))
+            .limit(6)
+        )
+        recent_result = await session.execute(recent_query)
+        recent_claims_list = [
+            {
+                "claim_id": c.id,
+                "client_name": c.client.name if c.client else "Cliente",
+                "product_name": c.order.product.name if c.order and c.order.product else "Producto",
+                "status": c.status,
+                "confidence": c.ai_confidence_score,
+                "created_at": c.created_at.strftime("%H:%M:%S") if c.created_at else "Reciente"
+            }
+            for c in recent_result.scalars().all()
+        ]
+
         return {
             "total_claims": total_claims,
             "auto_approved": auto_approved,
@@ -248,7 +271,8 @@ async def get_claims_metrics_db(db: Optional[AsyncSession] = None) -> Dict[str, 
             "human_resolved": human_resolved,
             "rejected": rejected,
             "automation_rate_pct": automation_rate,
-            "average_confidence_score": round(avg_confidence, 2)
+            "average_confidence_score": round(avg_confidence, 2),
+            "recent_claims": recent_claims_list
         }
 
     if db:

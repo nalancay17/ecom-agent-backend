@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.api.v1 import claims
 from app.core.config import settings
@@ -15,6 +16,15 @@ app = FastAPI(
     description="Backend para E-Com Agent: Sistema Agéntico de Postventa con LangGraph y Memoria Persistente",
     version="1.0.0",
     lifespan=lifespan
+)
+
+# Habilitar CORS para permitir peticiones desde el Frontend (Local y Cloud)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Routers de la API
