@@ -50,7 +50,12 @@ class Claim(Base):
     is_damaged = Column(Boolean, default=False)
     ai_confidence_score = Column(Float, default=0.0)
     requires_hitl = Column(Boolean, default=False)
+    hitl_reasons = Column(Text, nullable=True)
     status = Column(String, default="PENDING")
+    tracking_number = Column(String, nullable=True)
+    label_url = Column(String, nullable=True)
+    human_reviewer_notes = Column(Text, nullable=True)
+    resolved_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     order = relationship("Order", back_populates="claims")
