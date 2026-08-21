@@ -5,6 +5,8 @@ pydantic
 pydantic-settings
 pillow
 google-genai
+groq
+httpx
 sqlalchemy
 aiosqlite
 langgraph
