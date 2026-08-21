@@ -1,9 +1,6 @@
-from google import genai
-from google.genai import types
-from app.core.config import settings
 from app.schemas.guardrails import FraudRiskAnalysis
+from app.core.llm_factory import call_text_llm_with_fallback
 
-# Evaluación de riesgo de fraude (análisis de fraude)
 async def evaluate_fraud_risk(
     client_name: str,
     client_tier: str,
@@ -14,50 +11,47 @@ async def evaluate_fraud_risk(
     product_category: str
 ) -> FraudRiskAnalysis:
     """
-    Agente Evaluador de Riesgos: Analiza la Memoria Episódica del cliente
-    para determinar si el reclamo presenta patrones sospechosos de fraude.
+    Agente Evaluador de Riesgos y Fraude (Especializado en texto / memoria episódica).
+    
+    Usa Groq Llama 3.1 8B Instant como modelo primario:
+    - Latencia < 150ms gracias a la LPU de Groq.
+    - Ideal para clasificar tablas de historial de clientes y devolver JSON estricto.
+    
+    Fallback automático a Gemini 3.6 Flash si Groq agota cuota o falla.
     """
+    prompt = f"""
+    Eres el Agente Evaluador de Riesgos y Fraude de E-Com Agent.
+    Analiza el siguiente perfil de cliente y contexto de compra para determinar el riesgo de reclamo fraudulento.
+    
+    PERFIL DEL CLIENTE (Memoria Episódica):
+    - Nombre: {client_name}
+    - Nivel/Segmento: {client_tier}
+    - Score de Confianza Histórico: {trust_score} (1.0 = excelente, 0.0 = desconocido/sospechoso)
+    - Reclamos históricos totales: {total_past_claims}
+    - Reclamos en los últimos 90 días: {recent_claims_90d}
+    
+    CONTEXTO DE LA OPERACIÓN ACTUAL:
+    - Monto de la orden: ${order_amount:,.2f}
+    - Categoría del producto: {product_category}
+    
+    CRITERIOS DE DETECCIÓN DE FRAUDE (aplíca estrictamente):
+    - Alta frecuencia de reclamos recientes (> 2 en 90 días) es señal de alerta.
+    - Montos elevados combinados con clientes nuevos o con trust_score < 0.5 elevan el riesgo.
+    - Clientes VIP (trust_score > 0.85) con pocos reclamos históricos (< 3 totales) deben tener riesgo bajo.
+    - Si recent_claims_90d == 0 y trust_score > 0.7, el riesgo debe ser BAJO o MUY_BAJO.
+    """
+
     try:
-        client = genai.Client(api_key=settings.API_KEY)
-        
-        prompt = f"""
-        Eres el Agente Evaluador de Riesgos y Fraude de E-Com Agent.
-        Analiza el siguiente perfil de cliente y contexto de compra para determinar el riesgo de reclamo fraudulento:
-        
-        PERFIL DEL CLIENTE (Memoria Episódica):
-        - Nombre: {client_name}
-        - Nivel/Segmento: {client_tier}
-        - Score de Confianza Histórico: {trust_score} (1.0 = excelente)
-        - Reclamos históricos totales: {total_past_claims}
-        - Reclamos en los últimos 90 días: {recent_claims_90d}
-        
-        CONTEXTO DE LA OPERACIÓN ACTUAL:
-        - Monto de la orden: ${order_amount:,.2f}
-        - Categoría del producto: {product_category}
-        
-        CRITERIOS DE DETECCIÓN:
-        - Alta frecuencia de reclamos recientes (> 2 en 90 días) es señal de alerta.
-        - Montos elevados combinados con clientes nuevos o con bajo trust_score elevan el riesgo.
-        - Clientes VIP con pocos reclamos históricos deben tener riesgo bajo.
-        """
-        
-        response = client.models.generate_content(
-            model=settings.MODEL,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=FraudRiskAnalysis,
-                temperature=0.1
-            )
+        return await call_text_llm_with_fallback(
+            prompt=prompt,
+            response_schema=FraudRiskAnalysis,
+            task_type="fast"  # Llama 3.1 8B: máxima velocidad para clasificación
         )
-        
-        return FraudRiskAnalysis.model_validate_json(response.text)
-        
     except Exception as e:
-        # Contingencia defensiva
+        # Contingencia defensiva: si ambos modelos fallan, derivar al supervisor
         return FraudRiskAnalysis(
             fraud_risk_score=0.5,
             risk_level="MEDIO",
-            risk_reasons=[f"Evaluación de riesgo automática no disponible: {str(e)}"],
+            risk_reasons=[f"Evaluación de riesgo no disponible: ambos proveedores fallaron. Error: {str(e)}"],
             is_suspicious=True
         )
