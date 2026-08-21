@@ -5,9 +5,12 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "E-Com Agent API"
     ENVIRONMENT: str = "development"
     
-    # Proveedor 1: Google Gemini (Multimodal Vision & Reasoning)
-    API_KEY: str = ""  # Google AI Studio Key
+    # Proveedor 1A: Google Gemini - Clave Principal
+    API_KEY: str = ""
     MODEL: str = "gemini-3.6-flash"
+    
+    # Proveedor 1B: Google Gemini - Clave Secundaria (fallback de cuota intra-Gemini)
+    API_KEY_2: Optional[str] = None
     
     # Proveedor 2: Groq Cloud (Inferencia Gratuita con LPU)
     GROQ_API_KEY: Optional[str] = None

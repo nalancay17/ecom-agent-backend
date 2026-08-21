@@ -28,11 +28,15 @@ def is_transient_or_quota_error(error_msg: str) -> bool:
 # 1. CLIENTES DE LOS MODELOS
 # =========================================================================
 
-def get_gemini_client() -> Optional[genai.Client]:
-    """Instancia el cliente de Google Gemini."""
-    if not settings.API_KEY:
+def get_gemini_client(secondary: bool = False):
+    """
+    Instancia el cliente de Google Gemini.
+    secondary=True usa API_KEY_2 como clave alternativa (mismo proveedor, distinta cuota).
+    """
+    key = settings.API_KEY_2 if secondary else settings.API_KEY
+    if not key:
         return None
-    return genai.Client(api_key=settings.API_KEY)
+    return genai.Client(api_key=key)
 
 def get_groq_client():
     """Instancia el cliente de Groq si la librería y la API key están disponibles."""
@@ -62,17 +66,18 @@ async def call_vision_llm_with_fallback(
     response_schema: Type[T]
 ) -> T:
     """
-    Ejecuta el análisis visual con redundancia automática.
-    Intenta primero con Google Gemini 3.6 Flash. Si agota cuota (429/503),
-    conmuta automáticamente a Llama 3.2 Vision en Groq.
+    Ejecuta el análisis visual con redundancia automática en 3 niveles:
+    1. Gemini 3.6 Flash (API_KEY principal)
+    2. Gemini 3.6 Flash (API_KEY_2 - cuota alternativa)
+    3. Groq GPT-OSS 20B (análisis contextual sin imagen, modo contingencia)
     """
     errors_encountered = []
 
-    # --- INTENTO 1: Google Gemini 3.6 Flash (Primario de Visión) ---
-    gemini_client = get_gemini_client()
+    # --- INTENTO 1: Google Gemini 3.6 Flash (Clave Principal) ---
+    gemini_client = get_gemini_client(secondary=False)
     if gemini_client:
         try:
-            logger.info("Ejecutando análisis visual con Google Gemini 3.6 Flash...")
+            logger.info("Ejecutando análisis visual con Google Gemini 3.6 Flash (API_KEY)...")
             response = gemini_client.models.generate_content(
                 model=settings.MODEL,
                 contents=[
@@ -89,10 +94,34 @@ async def call_vision_llm_with_fallback(
             return response_schema.model_validate(data)
         except Exception as e:
             error_str = str(e)
-            errors_encountered.append(f"Gemini Vision: {error_str}")
-            logger.warning(f"⚠️ Gemini Vision falló ({error_str}). Evaluando conmutación a Groq Llama 3.2 Vision...")
+            errors_encountered.append(f"Gemini Vision (key1): {error_str}")
+            logger.warning(f"⚠️ Gemini (key1) falló ({error_str}). Intentando API_KEY_2...")
 
-    # --- INTENTO 2: Groq GPT-OSS 20B (Fallback de texto cuando Gemini falla) ---
+    # --- INTENTO 2: Google Gemini 3.6 Flash (Clave Secundaria API_KEY_2) ---
+    gemini_client_2 = get_gemini_client(secondary=True)
+    if gemini_client_2:
+        try:
+            logger.info("Ejecutando análisis visual con Google Gemini 3.6 Flash (API_KEY_2)...")
+            response = gemini_client_2.models.generate_content(
+                model=settings.MODEL,
+                contents=[
+                    types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+                    prompt
+                ],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=response_schema,
+                    temperature=0.1
+                )
+            )
+            data = json.loads(response.text)
+            return response_schema.model_validate(data)
+        except Exception as e:
+            error_str = str(e)
+            errors_encountered.append(f"Gemini Vision (key2): {error_str}")
+            logger.warning(f"⚠️ Gemini (key2) también falló. Conmutando a Groq...")
+
+    # --- INTENTO 3: Groq GPT-OSS 20B (Fallback de texto cuando ambos Gemini fallan) ---
     # GPT-OSS 20B no puede procesar imágenes directamente (multimodal puro),
     # pero puede razonar sobre los metadatos y el contexto textual del reclamo
     # para generar una evaluación de contingencia conservadora.
@@ -207,11 +236,11 @@ async def call_text_llm_with_fallback(
             errors_encountered.append(f"Groq ({groq_model}): {error_str}")
             logger.warning(f"⚠️ Groq falló ({error_str}). Conmutando a Gemini Flash...")
 
-    # --- INTENTO 2: Google Gemini Flash (Fallback) ---
-    gemini_client = get_gemini_client()
+    # --- INTENTO 2: Google Gemini Flash (Fallback - Clave Principal) ---
+    gemini_client = get_gemini_client(secondary=False)
     if gemini_client:
         try:
-            logger.info(f"Ejecutando fallback de texto con Gemini ({settings.MODEL})...")
+            logger.info(f"Ejecutando fallback de texto con Gemini/{settings.MODEL} (API_KEY)...")
             response = gemini_client.models.generate_content(
                 model=settings.MODEL,
                 contents=prompt,
@@ -225,8 +254,31 @@ async def call_text_llm_with_fallback(
             return response_schema.model_validate(data)
         except Exception as e2:
             error_str2 = str(e2)
-            errors_encountered.append(f"Gemini Flash: {error_str2}")
-            logger.error(f"❌ Falló el fallback de Gemini ({error_str2}).")
+            errors_encountered.append(f"Gemini Flash (key1): {error_str2}")
+            logger.warning(f"⚠️ Gemini (key1) también falló. Intentando API_KEY_2...")
+
+    # --- INTENTO 3: Google Gemini Flash (Fallback - Clave Secundaria API_KEY_2) ---
+    gemini_client_2 = get_gemini_client(secondary=True)
+    if gemini_client_2:
+        try:
+            logger.info(f"Ejecutando fallback de texto con Gemini/{settings.MODEL} (API_KEY_2)...")
+            response = gemini_client_2.models.generate_content(
+                model=settings.MODEL,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=response_schema,
+                    temperature=0.1
+                )
+            )
+            data = json.loads(response.text)
+            return response_schema.model_validate(data)
+        except Exception as e3:
+            error_str3 = str(e3)
+            errors_encountered.append(f"Gemini Flash (key2): {error_str3}")
+            logger.error(f"❌ Todos los proveedores fallaron en tarea de texto.")
 
     joined_errors = " | ".join(errors_encountered)
-    raise RuntimeError(f"Falla crítica en todos los modelos de razonamiento: {joined_errors}")
+    raise RuntimeError(
+        f"Todos los proveedores LLM de texto fallaron. Errores: {joined_errors}"
+    )
