@@ -54,7 +54,7 @@ En el comercio electrónico actual, el proceso de postventa de tiendas medianas 
 **2.1 Diagrama de Arquitectura y Orquestación**
 La implementación final utiliza un orquestador **StateGraph de LangGraph** con un flujo secuencial de agentes y ramificaciones condicionales en los puntos de validación. Este patrón permite derivar casos a la cola HITL o finalizar anticipadamente ante inconsistencias, garantizando la inmutabilidad de los flujos del negocio.
 
-![Arquitectura General del Sistema](arquitectura-procesamiento.jpg)
+![Arquitectura General del Sistema](https://drive.google.com/uc?id=1gfr9hyQoru-O7v70zYnzpXKNdtWT0ytt)
 
 **2.2 Diagrama UML de Secuencia**
 El siguiente diagrama detalla las interacciones síncronas y asíncronas del sistema completo en el procesamiento de un reclamo:
@@ -189,17 +189,17 @@ El sistema cuenta con tres interfaces perfectamente implementadas en producción
 ##### Vista 1: Portal de Entrada del Cliente (Ingreso de Reclamo)
 Esta interfaz intuitiva permite al usuario final cargar los datos de su pedido, describir la falla y adjuntar la fotografía de la prenda o dispositivo defectuoso como evidencia. El panel derecho es interactivo y muestra en tiempo real al usuario mediante polling el progreso asíncrono de los agentes de la orquestación en el backend FastAPI:
 
-![Portal de Entrada del Cliente](portal-cliente.png)
+![Portal de Entrada del Cliente](https://drive.google.com/uc?id=1n_QksTbzK8r4lu4vSjWOWqeXmnQmqqdJ)
 
 ##### Vista 2: Centro de Orquestación y Supervisión (Dashboard del Administrador)
 Consola ejecutiva para los operadores del backoffice que muestra los KPIs principales en tiempo real (Tasa de autonomía de resoluciones automáticas, score promedio de confianza de la IA y latencia general del backend) . Cuenta con la **Cola de Casos HITL** donde se visualiza el reclamo del monitor Samsung pausado automáticamente por monto elevado ($180.000):
 
-![Dashboard de Orquestación Admin](dashboard-administracion.png)
+![Dashboard de Orquestación Admin](https://drive.google.com/uc?id=1vHuipKQ2uJSZrNGuXD9Dd-dJOeoxOFZC)
 
 ##### Vista 3: Centro de Resolución y Auditoría de Casos
 Visor detallado de auditoría de cada caso derivado a supervisión humana. El operador puede inspeccionar el desglose del Score Compuesto, el diagnóstico de calidad visual de Gemini, la cita textual y número de cláusula de las políticas recuperadas por RAG, y tiene a disposición los botones de acción para "Aprobar" (generando la guía oficial de Andreani) o "Rechazar" con justificación escrita obligatoria:
 
-![Centro de Resolución y Auditoría](centro-resolucion.png)
+![Centro de Resolución y Auditoría](https://drive.google.com/uc?id=1Sq_yVBCgvpX3JKnpd_zJqrNLiYcI9Wqc)
 
 ---
 
